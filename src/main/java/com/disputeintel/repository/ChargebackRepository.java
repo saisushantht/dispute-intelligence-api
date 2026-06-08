@@ -9,7 +9,6 @@ import java.util.List;
 
 public interface ChargebackRepository extends JpaRepository<Chargeback, String> {
 
-    /** Filter by any combination of fields; a null param means "ignore". */
     @Query("""
         select c from Chargeback c
         where (:status is null or c.status = :status)
@@ -39,7 +38,6 @@ public interface ChargebackRepository extends JpaRepository<Chargeback, String> 
     @Query("select coalesce(avg(c.amount),0) from Chargeback c")
     java.math.BigDecimal avgAmount();
 
-    /** Generic grouped counts: returns [groupValue, disputeCount, wonCount, resolvedCount, sumAmount]. */
     @Query("""
         select g, count(c),
                sum(case when c.status = 'won' then 1 else 0 end),
@@ -60,7 +58,6 @@ public interface ChargebackRepository extends JpaRepository<Chargeback, String> 
         """)
     List<Object[]> groupedMetrics(@Param("dimension") String dimension);
 
-    /** Win rate per reason code, learned from resolved history: [code, won, resolved]. */
     @Query("""
         select c.reasonCode,
                sum(case when c.status = 'won' then 1 else 0 end),
@@ -70,7 +67,17 @@ public interface ChargebackRepository extends JpaRepository<Chargeback, String> 
         """)
     List<Object[]> winStatsByReasonCode();
 
-    /** Open disputes still within their deadline (the only fightable ones). */
     @Query("select c from Chargeback c where c.status = 'open' and c.deadlineAt >= :now")
     List<Chargeback> findFightable(@Param("now") OffsetDateTime now);
+
+    /** Fraud clusters: customer email + IP pairs with >= minCount disputes.
+        Returns [email, ip, disputeCount, totalAmount]. */
+    @Query("""
+        select c.customerEmail, c.customerIp, count(c), coalesce(sum(c.amount),0)
+        from Chargeback c
+        group by c.customerEmail, c.customerIp
+        having count(c) >= :minCount
+        order by count(c) desc
+        """)
+    List<Object[]> findFraudClusters(@Param("minCount") long minCount);
 }

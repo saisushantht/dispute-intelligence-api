@@ -1,5 +1,6 @@
 package com.disputeintel.web;
 
+import com.disputeintel.service.FraudService;
 import com.disputeintel.service.MetricsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -10,13 +11,15 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/metrics")
-@Tag(name = "Metrics & Analysis", description = "Global, segmented, and anomaly metrics")
+@Tag(name = "Metrics & Analysis", description = "Global, segmented, anomaly, and fraud metrics")
 public class MetricsController {
 
     private final MetricsService metrics;
+    private final FraudService fraud;
 
-    public MetricsController(MetricsService metrics) {
+    public MetricsController(MetricsService metrics, FraudService fraud) {
         this.metrics = metrics;
+        this.fraud = fraud;
     }
 
     @Operation(summary = "Global headline metrics")
@@ -40,5 +43,13 @@ public class MetricsController {
             @RequestParam(defaultValue = "productCategory") String dimension,
             @RequestParam(defaultValue = "2.0") double threshold) {
         return metrics.anomalies(dimension, threshold);
+    }
+
+    @Operation(summary = "Potential fraud rings (shared customer email + IP)",
+               description = "Flags email+IP pairs with at least minCount disputes")
+    @GetMapping("/fraud-rings")
+    public List<Map<String, Object>> fraudRings(
+            @RequestParam(defaultValue = "5") long minCount) {
+        return fraud.detectRings(minCount);
     }
 }
