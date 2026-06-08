@@ -23,4 +23,39 @@ public interface ChargebackRepository extends JpaRepository<Chargeback, String> 
                             @Param("productCategory") String productCategory,
                             @Param("customerCountry") String customerCountry,
                             @Param("merchantId") String merchantId);
+
+    long countByStatus(String status);
+
+    @Query("select count(c) from Chargeback c where c.status in ('won','lost')")
+    long countResolved();
+
+    @Query("select count(c) from Chargeback c where c.status = 'won'")
+    long countWon();
+
+    @Query("select coalesce(sum(c.amount),0) from Chargeback c")
+    java.math.BigDecimal totalAmount();
+
+    @Query("select coalesce(avg(c.amount),0) from Chargeback c")
+    java.math.BigDecimal avgAmount();
+
+    /** Generic grouped counts: returns [groupValue, disputeCount, wonCount, resolvedCount, sumAmount]. */
+    @Query("""
+        select g, count(c),
+               sum(case when c.status = 'won' then 1 else 0 end),
+               sum(case when c.status in ('won','lost') then 1 else 0 end),
+               coalesce(sum(c.amount),0)
+        from Chargeback c
+        join (select c2.id as id,
+                     case
+                       when :dimension = 'reasonCode' then c2.reasonCode
+                       when :dimension = 'productCategory' then c2.productCategory
+                       when :dimension = 'customerCountry' then c2.customerCountry
+                       when :dimension = 'merchantId' then c2.merchantId
+                       else c2.reasonCategory
+                     end as g
+              from Chargeback c2) sub on sub.id = c.id
+        group by g
+        order by count(c) desc
+        """)
+    List<Object[]> groupedMetrics(@Param("dimension") String dimension);
 }
