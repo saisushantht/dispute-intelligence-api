@@ -2,14 +2,15 @@ package com.disputeintel.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.domain.Persistable;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 /** A base transaction. Stored separately so chargeback RATE has a denominator. */
 @Entity
 @Table(name = "transactions")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class Transaction {
+@Getter @Setter @NoArgsConstructor
+public class Transaction implements Persistable<String> {
     @Id
     private String id;
 
@@ -36,4 +37,13 @@ public class Transaction {
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
+
+    // --- Persistable: avoids a pre-INSERT SELECT for assigned IDs ---
+    @Transient
+    private boolean isNew = true;
+
+    @Override public boolean isNew() { return isNew; }
+
+    @PostLoad @PostPersist
+    void markNotNew() { this.isNew = false; }
 }

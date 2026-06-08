@@ -2,14 +2,15 @@ package com.disputeintel.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.domain.Persistable;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 /** A dispute filed against a transaction. */
 @Entity
 @Table(name = "chargebacks")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class Chargeback {
+@Getter @Setter @NoArgsConstructor
+public class Chargeback implements Persistable<String> {
     @Id
     private String id;
 
@@ -60,4 +61,13 @@ public class Chargeback {
 
     @Column(name = "resolved_at")
     private OffsetDateTime resolvedAt;
+
+    // --- Persistable: avoids a pre-INSERT SELECT for assigned IDs ---
+    @Transient
+    private boolean isNew = true;
+
+    @Override public boolean isNew() { return isNew; }
+
+    @PostLoad @PostPersist
+    void markNotNew() { this.isNew = false; }
 }
